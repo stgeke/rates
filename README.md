@@ -1,14 +1,14 @@
 ## Setup
 First, install OCCA available under https://github.com/libocca/occa. Then run:
 ```
->export OCCA_DIR=$HOME/occa 
->make
+> export OCCA_DIR=$HOME/occa 
+> make
 ```
 
 ## Run Benchmark
 ```
-export OCCA_DIR=$HOME/occa; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
->./rates CUDA 100000 256
+> export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
+> ./rates CUDA 100000 256
 
 active occa mode: CUDA
 Nstates: 100000

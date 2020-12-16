@@ -1008,25 +1008,22 @@ __device__ void productionRate(double * wdot, double * sc, double T)
     double troe_c;                  /*TROE intermediate */
     double troe_n;                  /*TROE intermediate */
 
-    const double tc[] = {log(T), T, T*T, T*T*T, T*T*T*T, 1/T}; /*temperature cache */
+    const double tc[] = {log(T), T, T*T, T*T*T, T*T*T*T, 1./T}; /*temperature cache */
 
     /*reference concentration: P_atm / (RT) in inverse mol/m^3 */
 
     const double refC = 1.01325000e+05 / 8.314621000e+00 * tc[5];
     const double inv_refC = 1./refC;
 
-    /*compute the mixture concentration */
-    mixture = 0.0;
-    for (id = 0; id < 53; ++id) {
-        mixture += sc[id];
-    }
-
     /*compute the Gibbs free energy */
     gibbs(g_RT, tc);
 
-    /*zero out wdot */
+    mixture = 0.0;
+//#pragma unroll
     for (id = 0; id < 53; ++id) {
+        wdot[id] = 0;
         g_RT[id] = -g_RT[id];
+        mixture += sc[id];
     }
 
     /*reaction 1: 2 O + M <=> O2 + M */

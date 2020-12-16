@@ -82,7 +82,7 @@ int main(int argc, char** argv)
       for(int j=0; j<NS; j++) phi[j + i*NS] = Xref;
     }
  
-    ckwxp_(&pr[0], &T[0], &phi[0*NS], NULL, NULL, &rates_ref[0 + 0*NS]);
+    ckwxp_(&pr[0], &T[0], &phi[0], NULL, NULL, &rates_ref[0]);
  
     MPI_Barrier(MPI_COMM_WORLD);
     elapsedTime = MPI_Wtime();
@@ -155,7 +155,8 @@ int main(int argc, char** argv)
       for(int i=0; i<N; i++) {
         const double wdot_ref = rates_ref[j + i*NS];
         const double wdot = phi[j*N + i];
-        const double err = fabs((wdot - wdot_ref)/wdot_ref + 1e-300);
+        double err = 0;
+        if(wdot_ref > 1e-100) err = fabs((wdot - wdot_ref)/wdot_ref);
         err_inf = std::max(err, err_inf);
       }
     }

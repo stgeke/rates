@@ -1,4 +1,4 @@
-## Setup
+## Setup
 1) Install OCCA (available under https://github.com/libocca/occa)
 2) Set OCCA_DIR in makefile
 3) Run make

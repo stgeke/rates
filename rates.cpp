@@ -29,14 +29,13 @@ int main(int argc, char** argv)
   std::string current_dir;
   current_dir.assign(cwd);
 
-  occa::env::OCCA_DIR = current_dir; 
-  occa::env::OCCA_INSTALL_DIR = occa::env::OCCA_DIR;
+  occa::env::OCCA_CACHE_DIR = current_dir + "/occa/";
 
   std::string threadModel;
   threadModel.assign(strdup(argv[1]));
 
   int blockSize = std::stoi(argv[3]);
-  int N = std::stoi(argv[2]);
+  const int N = std::stoi(argv[2])/size;
 
   const int deviceId = 0;
   const int platformId = 0;
@@ -44,39 +43,6 @@ int main(int argc, char** argv)
   // build device
   occa::device device;
   char deviceConfig[BUFSIZ];
-
-  const int Ntests = 10;
-  const int Nblocks = (N + blockSize-1)/blockSize; 
-
-  double *phi       = (double*) malloc(NS * N * sizeof(double));
-  double *pr        = (double*) malloc(     N * sizeof(double));
-  double *T         = (double*) malloc(     N * sizeof(double));
-  double *rates     = (double*) malloc(NS * N * sizeof(double));
-  double *rates_ref = (double*) malloc(NS * N * sizeof(double));
-
-  const double prRef = 1.01325000e+05; // [Pa]
-  const double TRef = 1000;            // K
-  const double Xref = 1./NS; 
- 
-  double elapsedTime;
-  if(N <= 10) {
-    for(int i=0; i<N; i++) {
-      pr[i]  = 10*prRef;
-      T[i] = TRef;
-      for(int j=0; j<NS; j++) phi[j + i*NS] = Xref;
-    }
- 
-    fgwxp_(&pr[0], &T[0], &phi[0*NS], NULL, NULL, &rates_ref[0 + 0*NS]);
- 
-    MPI_Barrier(MPI_COMM_WORLD);
-    elapsedTime = MPI_Wtime();
-    for(int i=0; i<N; i++)
-      fgwxp_(&pr[i], &T[i], &phi[i*NS], NULL, NULL, &rates_ref[i*NS]);
-    MPI_Barrier(MPI_COMM_WORLD);
-    elapsedTime += (MPI_Wtime() - elapsedTime);
-
-    if(rank == 0) std::cout << "CPU throughput: " << (size*(double)N)/elapsedTime/1e6 << " MStates/s\n";
-  }
 
   if(strstr(threadModel.c_str(), "CUDA")) {
     sprintf(deviceConfig, "mode: 'CUDA', device_id: %d",deviceId);
@@ -93,8 +59,45 @@ int main(int argc, char** argv)
 
   std::string deviceConfigString(deviceConfig);
   device.setup(deviceConfigString);
+  if(rank == 0) std::cout << "active occa mode: " << device.mode() << "\n\n";
 
-  std::cout << "active occa mode: " << device.mode() << "\n\n";
+  const int Ntests = 10;
+  const int Nblocks = (N + blockSize-1)/blockSize; 
+
+  double *phi       = (double*) malloc(NS * N * sizeof(double));
+  double *pr        = (double*) malloc(     N * sizeof(double));
+  double *T         = (double*) malloc(     N * sizeof(double));
+  double *rates     = (double*) malloc(NS * N * sizeof(double));
+  double *rates_ref = (double*) malloc(NS * N * sizeof(double));
+
+  const double prRef = 1.01325000e+05; // [Pa]
+  const double TRef = 1000;            // K
+  const double Xref = 1./NS; 
+ 
+  double elapsedTime;
+  if(N <= 1 || device.mode() == "Serial") {
+    for(int i=0; i<N; i++) {
+      pr[i] = 10*prRef;
+      T[i]  = TRef;
+      for(int j=0; j<NS; j++) phi[j + i*NS] = Xref;
+    }
+ 
+    ckwxp_(&pr[0], &T[0], &phi[0*NS], NULL, NULL, &rates_ref[0 + 0*NS]);
+ 
+    MPI_Barrier(MPI_COMM_WORLD);
+    elapsedTime = MPI_Wtime();
+    for(int i=0; i<N; i++)
+      ckwxp_(&pr[i], &T[i], &phi[i*NS], NULL, NULL, &rates_ref[i*NS]);
+    MPI_Barrier(MPI_COMM_WORLD);
+    elapsedTime += (MPI_Wtime() - elapsedTime);
+
+    if(rank == 0) std::cout << "CPU throughput: " << (size*(double)N)/elapsedTime/1e6 << " MStates/s\n";
+    if (device.mode() == "Serial") {
+      MPI_Finalize();
+      exit(0);
+    }
+
+  }
 
   occa::properties props;
   props["defines"].asObject();
@@ -103,11 +106,12 @@ int main(int argc, char** argv)
   props["flags"].asObject();
   //props["compiler_flags"] += " --prec-div=false --prec-sqrt=false";
   //props["compiler_flags"] += " --use_fast_math";
+  props["includes"] += current_dir + "/gri.inc";
   props["okl/enabled"] = false;
 
-  occa::kernel ratesKernel = device.buildKernel("kernel/gri.cu", "mywxp_", props);
+  occa::kernel ratesKernel = device.buildKernel("kernel/gri.cu", "ckwxp_", props);
 
-  for(int i=0; i<N; i++) pr[i]  = 10*prRef;
+  for(int i=0; i<N; i++) pr[i] = 10*prRef;
   for(int i=0; i<N; i++) T[i] = TRef;
   for(int j=0; j<NS; j++) {
     for(int i=0; i<N; i++) phi[j*N + i] = Xref;
@@ -142,20 +146,20 @@ int main(int argc, char** argv)
   device.finish();
   MPI_Barrier(MPI_COMM_WORLD);
   elapsedTime += (MPI_Wtime() - elapsedTime)/Ntests;
-  std::cout << "throughput: " << (double)N/elapsedTime/1e6 << " MStates/s\n";
+  std::cout << "throughput: " << (size*(double)N)/elapsedTime/1e6 << " MStates/s\n";
 
-  if(N <= 10) {
+  if(N <= 1) {
     o_rates.copyTo(phi, NS*N * sizeof(double));
     double err_inf = 0;
     for(int j=0; j<NS; j++) {
       for(int i=0; i<N; i++) {
         const double wdot_ref = rates_ref[j + i*NS];
         const double wdot = phi[j*N + i];
-        const double err = fabs(wdot - wdot_ref)/fabs(wdot_ref + 1e-300);
+        const double err = fabs((wdot - wdot_ref)/wdot_ref + 1e-300);
         err_inf = std::max(err, err_inf);
       }
     }
-    printf("err_inf = %g\n", err_inf);
+    printf("Linf error = %g\n", err_inf);
   }
 
   MPI_Finalize();

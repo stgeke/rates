@@ -1,7 +1,9 @@
 ## Setup
-1) Install OCCA (available under https://github.com/libocca/occa)
-2) Set OCCA_DIR in makefile
-3) Run make
+First, install OCCA available under https://github.com/libocca/occa. Then run:
+```
+>export OCCA_DIR=$HOME/occa 
+>make
+```
 
 ## Run Benchmark
 ```

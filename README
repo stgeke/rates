@@ -1,0 +1,8 @@
+## Setup
+1) Install OCCA (available under https://github.com/libocca/occa)
+2) Set OCCA_DIR in makefile
+3) Run make
+
+## Run Benchmark
+1) export OCCA_DIR=/home/stefanke/occa; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
+2) ./rates CUDA 50000 256

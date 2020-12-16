@@ -3,7 +3,7 @@
 #########################################################
 export CXX = mpic++
 
-export OCCA_DIR = /home/stefanke/nekBench/build/occa
+export OCCA_DIR = ${HOME}/occa
 export OCCA_CUDA_ENABLED=1
 export OCCA_HIP_ENABLED=0
 export OCCA_OPENCL_ENABLED=0

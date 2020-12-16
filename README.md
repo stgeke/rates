@@ -5,7 +5,7 @@
 
 ## Run Benchmark
 ```
-export OCCA_DIR=/home/stefanke/occa; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
+export OCCA_DIR=$HOME/occa; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
 >./rates CUDA 100000 256
 
 active occa mode: CUDA

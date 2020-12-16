@@ -5,7 +5,7 @@ First, install OCCA available under https://github.com/libocca/occa. Then run:
 > make
 ```
 
-## Run Benchmark (Nvidia V100)
+## Benchmark Result on Nvidia V100
 ```
 > export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$OCCA_DIR/lib
 > ./rates CUDA 100000 256
